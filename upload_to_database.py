@@ -34,7 +34,7 @@ class Sync:
                     continue
                 params = img.split('_')
                 date = params[0]
-                weibo_id = params[1]
+                weibo_id = params[1].split('.')[0]
                 order = 0
                 if len(params) > 2:
                     order = params[2].split('.')[0]
