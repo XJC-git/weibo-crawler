@@ -2108,12 +2108,14 @@ def get_config():
 def main():
     try:
         config = get_config()
-        # wb = Weibo(config)
-        # wb.start()  # 爬取微博信息
-        # if const.NOTIFY["NOTIFY"]:
-        #     push_deer("更新了一次微博")
+        wb = Weibo(config)
+        wb.start()  # 爬取微博信息
+        if const.NOTIFY["NOTIFY"]:
+            push_deer("更新了一次微博")
         sync = Sync(config)
-        sync.upload_to_database()
+        result = sync.upload_to_database()
+        if const.NOTIFY["NOTIFY"]:
+            push_deer(result)
     except Exception as e:
         if const.NOTIFY["NOTIFY"]:
             push_deer("weibo-crawler运行出错，错误为{}".format(e))

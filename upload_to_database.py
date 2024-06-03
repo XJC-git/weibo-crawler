@@ -57,6 +57,7 @@ class Sync:
         tweets = self.scan_img()
         connection = pymysql.connect(**self.mysql_config)
         cursor = connection.cursor()
+        img_count = 0
         for weibo_id in tweets:
             tweet = tweets[weibo_id]
             new_tweet = {
@@ -97,8 +98,10 @@ class Sync:
                 except Exception as e:
                     connection.rollback()
                     raise e
+                img_count += 1
         connection.commit()
         connection.close()
+        return "weibo_crawler: 已获取{}条微博，共{}张图片".format(len(tweets), img_count)
 
     def mysql_insert_sql(self, data, table):
         values = ",".join(["%s"] * len(data))
