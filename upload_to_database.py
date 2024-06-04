@@ -18,13 +18,14 @@ class Sync:
         self.mysql_config = config["mysql_config"]
 
     def scan_img(self):
-        df = pd.read_csv("weibo/users.csv")
+        file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
+        df = pd.read_csv(file_dir+"users.csv")
         users = df['昵称'].tolist()
         user_ids = df['用户id'].tolist()
         f_list = os.listdir("weibo")
         tweets = {}
         for idx, user in enumerate(users):
-            base_dir = "weibo/" + user
+            base_dir = file_dir + user
             if not os.path.exists(base_dir):
                 continue
             for img in os.listdir(base_dir + '/img/原创微博图片'):
@@ -39,7 +40,7 @@ class Sync:
                 if len(params) > 2:
                     order = params[2].split('.')[0]
                 if weibo_id not in tweets:
-                    df_user = pd.read_csv(base_dir+'/{}.csv'.format(user_ids[idx]))
+                    df_user = pd.read_csv(base_dir + '/{}.csv'.format(user_ids[idx]))
                     tweets[weibo_id] = {
                         'date': date,
                         'author': user,
