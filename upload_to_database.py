@@ -22,7 +22,7 @@ class Sync:
         df = pd.read_csv(file_dir+"users.csv")
         users = df['昵称'].tolist()
         user_ids = df['用户id'].tolist()
-        f_list = os.listdir("weibo")
+        f_list = os.listdir(file_dir)
         tweets = {}
         for idx, user in enumerate(users):
             base_dir = file_dir + user
