@@ -2110,8 +2110,6 @@ def main():
         config = get_config()
         wb = Weibo(config)
         wb.start()  # 爬取微博信息
-        if const.NOTIFY["NOTIFY"]:
-            push_deer("更新了一次微博")
         sync = Sync(config)
         result = sync.upload_to_database()
         if const.NOTIFY["NOTIFY"]:
