@@ -69,6 +69,17 @@ class Sync:
                 "source": "weibo",
                 'content': tweet['content']
             }
+            try:
+                sql_query = """
+                        SELECT * FROM tweets
+                        WHERE content = %s
+                        """
+                cursor.execute(sql_query, (new_tweet['content'],))
+                result = cursor.fetchall()
+                if len(result) != 0: continue
+            except Exception as e:
+                raise e
+
             sql = self.mysql_insert_sql(new_tweet, "tweets")
             tweet_id = -1
             try:
