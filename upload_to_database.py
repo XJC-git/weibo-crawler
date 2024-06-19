@@ -54,7 +54,7 @@ class Sync:
                     }
                 else:
                     tweets[weibo_id]['images'][order] = '/static/weibo/' + img
-                #shutil.move(img_path, '/data/static/weibo/' + img)
+                shutil.move(img_path, '/data/static/weibo/' + img)
         return tweets
 
     def upload_to_backend(self):
