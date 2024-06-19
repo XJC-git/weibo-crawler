@@ -1,5 +1,5 @@
 {
-    "user_id_list": "user_id_list.txt",
+    "user_id_list": ["7494782559"],
     "only_crawl_original": 0,
     "since_date": 1,
     "start_page": 1,
@@ -28,5 +28,7 @@
     "post_config": {
         "api_url": "https://api.example.com",
         "api_token": ""
-    }
+    },
+    "uuid": "1629ea44-6ede-4e8f-a379-72a456709db8",
+    "backend_url": "http://localhost:8080"
 }

@@ -2111,7 +2111,7 @@ def main():
         wb = Weibo(config)
         wb.start()  # 爬取微博信息
         sync = Sync(config)
-        result = sync.upload_to_database()
+        result = sync.upload_to_backend()
         if const.NOTIFY["NOTIFY"]:
             push_deer(result)
     except Exception as e:

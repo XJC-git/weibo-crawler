@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import shutil
 import pymysql
+import requests
 
 logger = logging.getLogger("sync")
 
@@ -16,6 +17,8 @@ def convert_date(date_str):
 class Sync:
     def __init__(self, config):
         self.mysql_config = config["mysql_config"]
+        self.uuid = config["uuid"]
+        self.backend_url = config["backend_url"]
 
     def scan_img(self):
         file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
@@ -51,68 +54,46 @@ class Sync:
                     }
                 else:
                     tweets[weibo_id]['images'][order] = '/static/weibo/' + img
-                shutil.move(img_path, '/data/static/weibo/' + img)
+                #shutil.move(img_path, '/data/static/weibo/' + img)
         return tweets
 
-    def upload_to_database(self):
+    def upload_to_backend(self):
         tweets = self.scan_img()
-        connection = pymysql.connect(**self.mysql_config)
-        cursor = connection.cursor()
+
+        url = self.backend_url+"/crawler/token"
+        params = {'uuid': self.uuid}
+        response = requests.post(url, params=params)
+        token = response.json()['data']
+
+
         img_count = 0
+        post_data_list = []
+
         for weibo_id in tweets:
+            post_data = {}
             tweet = tweets[weibo_id]
             new_tweet = {
                 'date': convert_date(tweet['date']),
                 'author': tweet['author'],
-                'contains_image': len(tweet['images']),
+                'containsImage': len(tweet['images']),
                 'note': weibo_id,
                 "source": "weibo",
                 'content': tweet['content']
             }
-            try:
-                sql_query = """
-                        SELECT * FROM tweets
-                        WHERE content = %s
-                        """
-                cursor.execute(sql_query, (new_tweet['content'],))
-                result = cursor.fetchall()
-                if len(result) != 0: continue
-            except Exception as e:
-                raise e
+            post_data['tweets'] = new_tweet
 
-            sql = self.mysql_insert_sql(new_tweet, "tweets")
-            tweet_id = -1
-            try:
-                cursor.execute(sql, list(new_tweet.values()))
-                tweet_id = cursor.lastrowid
-            except Exception as e:
-                connection.rollback()
-                raise e
-
-            if tweet_id == -1:
-                continue
-
+            image_list = []
             for order in tweets[weibo_id]['images']:
-                new_img = {
-                    "path": tweets[weibo_id]['images'][order],
-                }
-                sql = self.mysql_insert_sql(new_img, "images")
-                try:
-                    cursor.execute(sql, list(new_img.values()))
-                    img_id = cursor.lastrowid
-                    new_rel = {
-                        "image_id": img_id,
-                        "tweet_id": tweet_id,
-                        "sequence": int(order),
-                    }
-                    sql = self.mysql_insert_sql(new_rel, "rel_tweets_images")
-                    cursor.execute(sql, list(new_rel.values()))
-                except Exception as e:
-                    connection.rollback()
-                    raise e
+                image_list.append(tweets[weibo_id]['images'][order])
                 img_count += 1
-        connection.commit()
-        connection.close()
+
+            post_data['images'] = image_list
+            post_data_list.append(post_data)
+
+        url = self.backend_url + "/crawler/weibo"
+        headers = {'X-Auth-Token': token}
+        response = requests.post(url, json={'list':post_data_list}, headers=headers)
+
         return "weibo_crawler: 已获取{}条微博，共{}张图片".format(len(tweets), img_count)
 
     def mysql_insert_sql(self, data, table):
