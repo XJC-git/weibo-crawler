@@ -15,14 +15,24 @@ def convert_date(date_str):
 
 
 class Sync:
+    token = None
+
     def __init__(self, config):
         self.mysql_config = config["mysql_config"]
         self.uuid = config["uuid"]
         self.backend_url = config["backend_url"]
+        if self.token is None:
+            self.get_token()
+
+    def get_token(self):
+        url = self.backend_url + "/crawler/token"
+        params = {'uuid': self.uuid}
+        response = requests.post(url, params=params)
+        self.token = response.json()['data']
 
     def scan_img(self):
         file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
-        df = pd.read_csv(file_dir+"users.csv")
+        df = pd.read_csv(file_dir + "users.csv")
         users = df['昵称'].tolist()
         user_ids = df['用户id'].tolist()
         f_list = os.listdir(file_dir)
@@ -60,11 +70,7 @@ class Sync:
     def upload_to_backend(self):
         tweets = self.scan_img()
 
-        url = self.backend_url+"/crawler/token"
-        params = {'uuid': self.uuid}
-        response = requests.post(url, params=params)
-        token = response.json()['data']
-
+        token = self.token
 
         img_count = 0
         post_data_list = []
@@ -92,10 +98,21 @@ class Sync:
 
         url = self.backend_url + "/crawler/weibo"
         headers = {'X-Auth-Token': token}
-        response = requests.post(url, json={'list':post_data_list}, headers=headers)
+        response = requests.post(url, json={'list': post_data_list}, headers=headers)
 
-        return "weibo_crawler: 已获取{}条微博，共{}张图片".format(len(tweets), img_count)
+        return "已获取{}条微博，共{}张图片".format(len(tweets), img_count)
 
+    def log_info(self, msg):
+        url = self.backend_url + "/log/crawler/info"
+        headers = {'X-Auth-Token': self.token}
+        params = {'msg': msg}
+        requests.post(url, params=params, headers=headers)
+
+    def log_error(self, msg):
+        url = self.backend_url + "/log/crawler/error"
+        headers = {'X-Auth-Token': self.token}
+        params = {'msg': msg}
+        requests.post(url, params=params, headers=headers)
     def mysql_insert_sql(self, data, table):
         values = ",".join(["%s"] * len(data))
         keys = ",".join(data.keys())
