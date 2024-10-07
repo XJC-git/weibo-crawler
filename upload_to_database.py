@@ -6,6 +6,7 @@ import pandas as pd
 import shutil
 import pymysql
 import requests
+import boto3
 
 logger = logging.getLogger("sync")
 
@@ -19,10 +20,16 @@ class Sync:
         self.mysql_config = config["mysql_config"]
         self.uuid = config["uuid"]
         self.backend_url = config["backend_url"]
+        self.r2 = boto3.client(
+            's3',
+            endpoint_url=config.ENDPOINT_URL,
+            aws_access_key_id=config.ACCESS_KEY,
+            aws_secret_access_key=config.SECRET_KEY
+        )
 
     def scan_img(self):
         file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
-        df = pd.read_csv(file_dir+"users.csv")
+        df = pd.read_csv(file_dir + "users.csv")
         users = df['昵称'].tolist()
         user_ids = df['用户id'].tolist()
         f_list = os.listdir(file_dir)
@@ -54,17 +61,63 @@ class Sync:
                     }
                 else:
                     tweets[weibo_id]['images'][order] = '/static/weibo/' + img
-                shutil.move(img_path, '/data/static/weibo/' + img)
+
+                self.upload_image(image_path=img_path)
+                os.remove(img_path)
+                # shutil.move(img_path, '/data/static/weibo/' + img)
         return tweets
+
+    def upload_image_from_url(self, url):
+        # Extract the image file name from the URL
+        image_name = str(uuid.uuid3(uuid.NAMESPACE_URL, url))
+        try:
+            self.r2.head_object(Bucket=self.config.BUCKET_NAME, Key=image_name)
+            print(f"The image already exists in {self.config.BUCKET_NAME}/{image_name}, skipping")
+            return image_name
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                pass
+
+        # Define a temporary path to save the downloaded image
+        temp_path = os.path.join("/tmp", image_name)
+
+        try:
+            # Download the image
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(temp_path, 'wb') as f:
+                    f.write(response.content)
+            else:
+                raise Exception(f"Failed to download image from {url}")
+
+            # Upload the image using the upload_image function
+            uploaded_file_path = self.upload_image(temp_path)
+
+            # Clean up the temporary file
+            os.remove(temp_path)
+
+            return uploaded_file_path
+        except Exception as e:
+            print(f"Error downloading image: {url}\n{e}")
+            return None
+
+    def upload_image(self, image_path):
+        try:
+            with open(image_path, 'rb') as file:
+                file_name = file.name.split('/')[-1]
+                self.r2.upload_fileobj(file, self.config.BUCKET_NAME, file_name)
+                print(f"File {image_path} uploaded")
+                return file_name
+        except Exception as e:
+            print(f"Error uploading file: {e}")
 
     def upload_to_backend(self):
         tweets = self.scan_img()
 
-        url = self.backend_url+"/crawler/token"
+        url = self.backend_url + "/crawler/token"
         params = {'uuid': self.uuid}
         response = requests.post(url, params=params)
         token = response.json()['data']
-
 
         img_count = 0
         post_data_list = []
@@ -92,7 +145,7 @@ class Sync:
 
         url = self.backend_url + "/crawler/weibo"
         headers = {'X-Auth-Token': token}
-        response = requests.post(url, json={'list':post_data_list}, headers=headers)
+        response = requests.post(url, json={'list': post_data_list}, headers=headers)
 
         return "weibo_crawler: 已获取{}条微博，共{}张图片".format(len(tweets), img_count)
 
