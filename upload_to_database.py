@@ -19,6 +19,7 @@ class Sync:
     token = None
 
     def __init__(self, config):
+        self.config = config
         self.mysql_config = config["mysql_config"]
         self.uuid = config["uuid"]
         self.backend_url = config["backend_url"]
@@ -26,9 +27,9 @@ class Sync:
             self.get_token()
         self.r2 = boto3.client(
             's3',
-            endpoint_url=config.ENDPOINT_URL,
-            aws_access_key_id=config.ACCESS_KEY,
-            aws_secret_access_key=config.SECRET_KEY
+            endpoint_url=config['ENDPOINT_URL'],
+            aws_access_key_id=config['ACCESS_KEY'],
+            aws_secret_access_key=config['SECRET_KEY']
         )
 
     def get_token(self):
@@ -82,8 +83,8 @@ class Sync:
         # Extract the image file name from the URL
         image_name = str(uuid.uuid3(uuid.NAMESPACE_URL, url))
         try:
-            self.r2.head_object(Bucket=self.config.BUCKET_NAME, Key=image_name)
-            print(f"The image already exists in {self.config.BUCKET_NAME}/{image_name}, skipping")
+            self.r2.head_object(Bucket=self.config['BUCKET_NAME'], Key=image_name)
+            print(f"The image already exists in {self.config['BUCKET_NAME']}/{image_name}, skipping")
             return image_name
         except ClientError as e:
             if e.response['Error']['Code'] == '404':
@@ -116,7 +117,7 @@ class Sync:
         try:
             with open(image_path, 'rb') as file:
                 file_name = file.name.split('/')[-1]
-                self.r2.upload_fileobj(file, self.config.BUCKET_NAME, file_name)
+                self.r2.upload_fileobj(file, self.config['BUCKET_NAME'], file_name)
                 print(f"File {image_path} uploaded")
                 return file_name
         except Exception as e:
