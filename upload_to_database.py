@@ -38,7 +38,6 @@ class Sync:
         response = requests.post(url, params=params)
         self.token = response.json()['data']
 
-
     def scan_img(self):
         file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
         df = pd.read_csv(file_dir + "users.csv")
@@ -59,6 +58,10 @@ class Sync:
                 date = params[0]
                 weibo_id = params[1].split('.')[0]
                 order = 0
+
+                file_name = self.upload_image(image_path=img_path)
+                os.remove(img_path)
+
                 if len(params) > 2:
                     order = params[2].split('.')[0]
                 if weibo_id not in tweets:
@@ -67,15 +70,13 @@ class Sync:
                         'date': date,
                         'author': user,
                         'images': {
-                            order: '/static/weibo/' + img
+                            order: 'https://static.xlibrary.cloud/' + file_name
                         },
                         'content': df_user.loc[df_user['id'] == int(weibo_id), '正文'].values[0]
                     }
                 else:
-                    tweets[weibo_id]['images'][order] = '/static/weibo/' + img
+                    tweets[weibo_id]['images'][order] = 'https://static.xlibrary.cloud/' + file_name
 
-                self.upload_image(image_path=img_path)
-                os.remove(img_path)
                 # shutil.move(img_path, '/data/static/weibo/' + img)
         return tweets
 
