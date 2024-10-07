@@ -6,7 +6,6 @@ import pandas as pd
 import shutil
 import pymysql
 import requests
-import boto3
 
 logger = logging.getLogger("sync")
 
@@ -16,10 +15,20 @@ def convert_date(date_str):
 
 
 class Sync:
+    token = None
+
     def __init__(self, config):
         self.mysql_config = config["mysql_config"]
         self.uuid = config["uuid"]
         self.backend_url = config["backend_url"]
+        if self.token is None:
+            self.get_token()
+
+    def get_token(self):
+        url = self.backend_url + "/crawler/token"
+        params = {'uuid': self.uuid}
+        response = requests.post(url, params=params)
+        self.token = response.json()['data']
         self.r2 = boto3.client(
             's3',
             endpoint_url=config.ENDPOINT_URL,
@@ -114,6 +123,8 @@ class Sync:
     def upload_to_backend(self):
         tweets = self.scan_img()
 
+        token = self.token
+
         url = self.backend_url + "/crawler/token"
         params = {'uuid': self.uuid}
         response = requests.post(url, params=params)
@@ -147,7 +158,19 @@ class Sync:
         headers = {'X-Auth-Token': token}
         response = requests.post(url, json={'list': post_data_list}, headers=headers)
 
-        return "weibo_crawler: 已获取{}条微博，共{}张图片".format(len(tweets), img_count)
+        return "已获取{}条微博，共{}张图片".format(len(tweets), img_count)
+
+    def log_info(self, msg):
+        url = self.backend_url + "/log/crawler/info"
+        headers = {'X-Auth-Token': self.token}
+        params = {'msg': msg}
+        requests.post(url, params=params, headers=headers)
+
+    def log_error(self, msg):
+        url = self.backend_url + "/log/crawler/error"
+        headers = {'X-Auth-Token': self.token}
+        params = {'msg': msg}
+        requests.post(url, params=params, headers=headers)
 
     def mysql_insert_sql(self, data, table):
         values = ",".join(["%s"] * len(data))
