@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 
+import boto3
 import pandas as pd
 import shutil
 import pymysql
@@ -23,18 +24,19 @@ class Sync:
         self.backend_url = config["backend_url"]
         if self.token is None:
             self.get_token()
-
-    def get_token(self):
-        url = self.backend_url + "/crawler/token"
-        params = {'uuid': self.uuid}
-        response = requests.post(url, params=params)
-        self.token = response.json()['data']
         self.r2 = boto3.client(
             's3',
             endpoint_url=config.ENDPOINT_URL,
             aws_access_key_id=config.ACCESS_KEY,
             aws_secret_access_key=config.SECRET_KEY
         )
+
+    def get_token(self):
+        url = self.backend_url + "/crawler/token"
+        params = {'uuid': self.uuid}
+        response = requests.post(url, params=params)
+        self.token = response.json()['data']
+
 
     def scan_img(self):
         file_dir = os.path.split(os.path.realpath(__file__))[0] + os.sep + "weibo/"
